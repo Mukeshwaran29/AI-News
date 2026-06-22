@@ -1,0 +1,53 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Turborepo cache
+.turbo/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Environment variables & secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+*.env
+.env.workspace
+
+# Vercel
+.vercel/
+
+# Python cache & virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.toast
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Modal and telemetry caches
+.modal/
+.npm/
+
+# Build artifacts
+dist/
+build/

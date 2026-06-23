@@ -1,7 +1,16 @@
 import modal
 import asyncio
 import os
-from llm_analysis import PDF_CATEGORIES
+
+# Categories that typically contain PDFs with financial data
+PDF_CATEGORIES = {
+    "financial_results",
+    "annual_report",
+    "corporate_governance",
+    "shareholding_pattern",
+    "board_meeting",
+}
+
 
 
 app = modal.App("nse-sentiment-worker")

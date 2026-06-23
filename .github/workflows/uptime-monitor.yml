@@ -2,7 +2,7 @@ name: 🟢 Uptime Monitor — NSE Sentiment
 
 on:
   schedule:
-    # Runs every 5 minutes (GitHub's minimum is 5 min)
+    # Runs every 5 minutes (free on public GitHub repos — unlimited minutes)
     - cron: '*/5 * * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
@@ -23,6 +23,8 @@ jobs:
             "https://web-rho-bice-43.vercel.app/")
 
           echo "status=$HTTP_STATUS" >> $GITHUB_OUTPUT
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
 
           if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
             echo "✅ Site is UP — HTTP $HTTP_STATUS"
@@ -32,16 +34,31 @@ jobs:
             echo "up=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: 🚨 Send WhatsApp alert if site is DOWN
+      - name: 📧 Send Gmail alert if site is DOWN
         if: steps.ping.outputs.up == 'false'
-        run: |
-          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
-          MESSAGE="🚨 NSE Sentiment site is DOWN!%0AStatus: HTTP ${{ steps.ping.outputs.status }}%0ATime: $TIMESTAMP%0AURL: https://web-rho-bice-43.vercel.app%0A%0ACheck Vercel dashboard immediately."
-
-          curl -s "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.CALLMEBOT_PHONE }}&text=${MESSAGE}&apikey=${{ secrets.CALLMEBOT_APIKEY }}"
-
-          echo "WhatsApp alert sent!"
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.ALERT_EMAIL_FROM }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "🚨 [DOWN] NSE Sentiment Site is Unreachable"
+          to: ${{ secrets.ALERT_EMAIL_TO }}
+          from: "NSE Uptime Monitor <${{ secrets.ALERT_EMAIL_FROM }}>"
+          html_body: |
+            <h2 style="color: #dc2626;">🚨 Your site is DOWN</h2>
+            <table style="font-family: monospace; border-collapse: collapse;">
+              <tr><td style="padding: 4px 12px 4px 0;"><b>Site</b></td><td>NSE Sentiment Intelligence</td></tr>
+              <tr><td style="padding: 4px 12px 4px 0;"><b>URL</b></td><td><a href="https://web-rho-bice-43.vercel.app">https://web-rho-bice-43.vercel.app</a></td></tr>
+              <tr><td style="padding: 4px 12px 4px 0;"><b>HTTP Status</b></td><td style="color: #dc2626;">${{ steps.ping.outputs.status }}</td></tr>
+              <tr><td style="padding: 4px 12px 4px 0;"><b>Detected At</b></td><td>${{ steps.ping.outputs.timestamp }}</td></tr>
+            </table>
+            <br/>
+            <p>👉 <a href="https://vercel.com/dashboard">Check Vercel Dashboard</a> for deployment logs.</p>
+            <p style="color: #6b7280; font-size: 12px;">This alert was triggered by your GitHub Actions uptime monitor.<br/>
+            Repo: <a href="https://github.com/Mukeshwaran29/AI-News">Mukeshwaran29/AI-News</a></p>
 
       - name: ✅ Log success
         if: steps.ping.outputs.up == 'true'
-        run: echo "Site is healthy. No alert needed."
+        run: echo "Site is healthy at ${{ steps.ping.outputs.timestamp }}. No alert needed."

@@ -2,7 +2,7 @@ name: 🟢 Uptime Monitor — NSE Sentiment
 
 on:
   schedule:
-    # Runs every 5 minutes (free on public GitHub repos — unlimited minutes)
+    # Runs every 5 minutes, all day — the job itself skips outside 6 AM–11:59 PM IST
     - cron: '*/5 * * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
@@ -13,8 +13,32 @@ jobs:
     timeout-minutes: 2
 
     steps:
+      # ── Step 1: Check if we are within active hours (6 AM – 11:59 PM IST) ──
+      - name: 🕐 Check active hours (IST)
+        id: hours
+        run: |
+          # IST = UTC+5:30
+          HOUR_IST=$(TZ='Asia/Kolkata' date '+%H')
+          MIN_IST=$(TZ='Asia/Kolkata'  date '+%M')
+          TOTAL_MIN=$(( 10#$HOUR_IST * 60 + 10#$MIN_IST ))
+          START_MIN=$(( 6 * 60 ))       # 6:00 AM IST  = 360 min
+          END_MIN=$(( 23 * 60 + 59 ))   # 11:59 PM IST = 1439 min
+
+          echo "Current IST time: ${HOUR_IST}:${MIN_IST}  (${TOTAL_MIN} min)"
+          echo "Active window   : 06:00 – 23:59 IST"
+
+          if [ "$TOTAL_MIN" -ge "$START_MIN" ] && [ "$TOTAL_MIN" -le "$END_MIN" ]; then
+            echo "✅ Within active hours — proceeding."
+            echo "active=true" >> $GITHUB_OUTPUT
+          else
+            echo "💤 Outside active hours — skipping monitor."
+            echo "active=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ── Step 2: Ping site (only during active hours) ──
       - name: 🔍 Ping Vercel deployment
         id: ping
+        if: steps.hours.outputs.active == 'true'
         run: |
           HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
             --max-time 15 \
@@ -22,20 +46,21 @@ jobs:
             --retry-delay 3 \
             "https://web-rho-bice-43.vercel.app/")
 
-          echo "status=$HTTP_STATUS" >> $GITHUB_OUTPUT
-          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
-          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          TIMESTAMP=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %I:%M %p IST')
+          echo "status=$HTTP_STATUS"     >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP"   >> $GITHUB_OUTPUT
 
           if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
-            echo "✅ Site is UP — HTTP $HTTP_STATUS"
+            echo "✅ Site is UP — HTTP $HTTP_STATUS at $TIMESTAMP"
             echo "up=true" >> $GITHUB_OUTPUT
           else
-            echo "🚨 Site is DOWN — HTTP $HTTP_STATUS"
+            echo "🚨 Site is DOWN — HTTP $HTTP_STATUS at $TIMESTAMP"
             echo "up=false" >> $GITHUB_OUTPUT
           fi
 
+      # ── Step 3: Send Gmail alert only if site is DOWN ──
       - name: 📧 Send Gmail alert if site is DOWN
-        if: steps.ping.outputs.up == 'false'
+        if: steps.hours.outputs.active == 'true' && steps.ping.outputs.up == 'false'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -56,9 +81,12 @@ jobs:
             </table>
             <br/>
             <p>👉 <a href="https://vercel.com/dashboard">Check Vercel Dashboard</a> for deployment logs.</p>
-            <p style="color: #6b7280; font-size: 12px;">This alert was triggered by your GitHub Actions uptime monitor.<br/>
-            Repo: <a href="https://github.com/Mukeshwaran29/AI-News">Mukeshwaran29/AI-News</a></p>
+            <p style="color: #6b7280; font-size: 12px;">
+              This alert was triggered by your GitHub Actions uptime monitor.<br/>
+              Repo: <a href="https://github.com/Mukeshwaran29/AI-News">Mukeshwaran29/AI-News</a><br/>
+              Active hours: 6:00 AM – 11:59 PM IST only.
+            </p>
 
       - name: ✅ Log success
-        if: steps.ping.outputs.up == 'true'
-        run: echo "Site is healthy at ${{ steps.ping.outputs.timestamp }}. No alert needed."
+        if: steps.hours.outputs.active == 'true' && steps.ping.outputs.up == 'true'
+        run: echo "✅ Site is healthy at ${{ steps.ping.outputs.timestamp }}. No alert needed."

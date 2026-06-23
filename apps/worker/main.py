@@ -142,6 +142,7 @@ async def trigger_alert(supabase_url: str, service_key: str, payload: dict):
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("nse-sentiment-secrets")],
+    schedule=modal.Period(minutes=5),
     timeout=120,
 )
 async def test_trigger():

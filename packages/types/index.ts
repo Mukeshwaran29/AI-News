@@ -20,7 +20,12 @@ export interface AnalyzedEvent {
   pub_date: string         // ISO 8601
   analyzed_at: string
   model_version: string
+  // PDF enrichment — present only when a filing PDF was successfully processed
+  pdf_url?:        string
+  pdf_summary?:    string
+  highlights?:     Record<string, string>   // e.g. { Revenue: "₹2,340 Cr +12% YoY" }
 }
+
 
 export interface CompanyAgg {
   ticker: string

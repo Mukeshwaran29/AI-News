@@ -1,6 +1,7 @@
 import modal
 import asyncio
 import os
+from llm_analysis import PDF_CATEGORIES
 
 
 app = modal.App("nse-sentiment-worker")
@@ -8,6 +9,7 @@ app = modal.App("nse-sentiment-worker")
 def download_models():
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
     from sentence_transformers import SentenceTransformer
+    import pdfplumber  # noqa: F401 — ensure package is available in image
     
     MODEL_ID = "ProsusAI/finbert"
     AutoTokenizer.from_pretrained(MODEL_ID)
@@ -34,6 +36,8 @@ async def process_jobs():
     from inference import score_texts
     from enrichment import extract_entities_batch, extract_keywords_batch
     from rationale import generate_rationale
+    from pdf_extractor import extract_pdf_text
+    from llm_analysis import analyze_filing
     
     supabase_url = os.environ["SUPABASE_URL"]
     service_key  = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -78,25 +82,66 @@ async def process_jobs():
         entities_list = extract_entities_batch(texts)
         keywords_list = extract_keywords_batch(texts)
 
-        # 4. Generate rationales and prepare writing tasks
+        # 4. Async PDF download + LLM analysis (only for PDF-bearing categories)
+        async def _noop_none(): return None
+        async def _noop_dict(): return {}
+
+        print(f"[worker] Starting async PDF enrichment step...")
+        pdf_tasks = []
+        for raw in valid_raw_feeds:
+            if raw.get('category') in PDF_CATEGORIES and raw.get('link'):
+                pdf_tasks.append(extract_pdf_text(raw['link']))
+            else:
+                pdf_tasks.append(_noop_none())
+
+        # Run all PDF downloads concurrently (returns None for non-PDF items)
+        pdf_texts_raw = await asyncio.gather(*pdf_tasks, return_exceptions=True)
+
+        # LLM analysis — only for items that produced valid text
+        llm_tasks = []
+        for raw, pdf_text in zip(valid_raw_feeds, pdf_texts_raw):
+            if isinstance(pdf_text, str) and pdf_text.strip():
+                llm_tasks.append(analyze_filing(pdf_text, raw.get('category', ''), raw.get('title', '')))
+            else:
+                llm_tasks.append(_noop_dict())
+
+        llm_results = await asyncio.gather(*llm_tasks, return_exceptions=True)
+        print(f"[worker] PDF enrichment done. "
+              f"{sum(1 for r in llm_results if isinstance(r, dict) and r)} items enriched.")
+
+        # 5. Generate rationales and prepare writing tasks
         write_tasks = []
         processed_metadata = []
         
-        for job, raw, inference, entities, keywords in zip(valid_jobs, valid_raw_feeds, inferences, entities_list, keywords_list):
+        for idx, (job, raw, inference, entities, keywords) in enumerate(
+            zip(valid_jobs, valid_raw_feeds, inferences, entities_list, keywords_list)
+        ):
             ticker_val = entities.get('ticker') or raw.get('ticker') or 'UNKNOWN'
             company_val = entities.get('company') or 'Unknown Company'
-            
-            rationale = generate_rationale(
+
+            # Merge LLM result
+            llm_result = llm_results[idx] if not isinstance(llm_results[idx], Exception) else {}
+            pdf_text_for_item = pdf_texts_raw[idx] if not isinstance(pdf_texts_raw[idx], Exception) else None
+
+            # Use LLM-generated sentiment_reason to augment rationale if available
+            base_rationale = generate_rationale(
                 raw['category'], inference['label'],
                 company_val, ticker_val, keywords,
             )
-            
+            if isinstance(llm_result, dict) and llm_result.get('sentiment_reason'):
+                rationale = llm_result['sentiment_reason']
+            else:
+                rationale = base_rationale
+
             enrichment = {
-                'ticker': ticker_val,
-                'company': company_val,
-                'keywords': keywords,
+                'ticker':      ticker_val,
+                'company':     company_val,
+                'keywords':    keywords,
+                'pdf_url':     raw.get('link') if (isinstance(llm_result, dict) and llm_result) else None,
+                'pdf_summary': llm_result.get('summary')     if isinstance(llm_result, dict) else None,
+                'highlights':  llm_result.get('highlights')  if isinstance(llm_result, dict) else None,
             }
-            
+
             task = write_result(conn, str(job['id']), raw, inference, enrichment, rationale)
             write_tasks.append(task)
             processed_metadata.append((job, raw, inference, entities, keywords, rationale))

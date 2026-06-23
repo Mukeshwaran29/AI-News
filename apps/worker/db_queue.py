@@ -44,17 +44,22 @@ async def write_result(conn: SupabaseRestClient, job_id: str, raw_feed: dict,
     """
     # 1. Insert into analyzed_events
     event_row = {
-        'raw_feed_id': raw_feed['id'],
-        'ticker': enrichment.get('ticker') or raw_feed.get('ticker') or 'UNKNOWN',
+        'raw_feed_id':  raw_feed['id'],
+        'ticker':       enrichment.get('ticker') or raw_feed.get('ticker') or 'UNKNOWN',
         'company_name': enrichment.get('company') or 'Unknown Company',
-        'category': raw_feed['category'],
-        'headline': raw_feed['title'],
-        'sentiment': inference['label'],
-        'score': inference['score'],
-        'rationale': rationale,
-        'keywords': enrichment['keywords'],
-        'pub_date': raw_feed['pub_date']
+        'category':     raw_feed['category'],
+        'headline':     raw_feed['title'],
+        'sentiment':    inference['label'],
+        'score':        inference['score'],
+        'rationale':    rationale,
+        'keywords':     enrichment['keywords'],
+        'pub_date':     raw_feed['pub_date'],
+        # PDF enrichment — optional, omit key if not available so Supabase uses column default
+        **( {'pdf_url':     enrichment['pdf_url']}     if enrichment.get('pdf_url')     else {} ),
+        **( {'pdf_summary': enrichment['pdf_summary']} if enrichment.get('pdf_summary') else {} ),
+        **( {'highlights':  enrichment['highlights']}  if enrichment.get('highlights')  else {} ),
     }
+
     
     r = await conn.client.post(
         f"{conn.url}/analyzed_events",

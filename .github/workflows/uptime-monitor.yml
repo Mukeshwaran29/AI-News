@@ -44,7 +44,7 @@ jobs:
             --max-time 15 \
             --retry 2 \
             --retry-delay 3 \
-            "https://web-rho-bice-43.vercel.app/")
+            "https://flashnewsai.vercel.app/")
 
           TIMESTAMP=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %I:%M %p IST')
           echo "status=$HTTP_STATUS"     >> $GITHUB_OUTPUT
@@ -75,7 +75,7 @@ jobs:
             <h2 style="color: #dc2626;">🚨 Your site is DOWN</h2>
             <table style="font-family: monospace; border-collapse: collapse;">
               <tr><td style="padding: 4px 12px 4px 0;"><b>Site</b></td><td>NSE Sentiment Intelligence</td></tr>
-              <tr><td style="padding: 4px 12px 4px 0;"><b>URL</b></td><td><a href="https://web-rho-bice-43.vercel.app">https://web-rho-bice-43.vercel.app</a></td></tr>
+              <tr><td style="padding: 4px 12px 4px 0;"><b>URL</b></td><td><a href="https://flashnewsai.vercel.app">https://flashnewsai.vercel.app</a></td></tr>
               <tr><td style="padding: 4px 12px 4px 0;"><b>HTTP Status</b></td><td style="color: #dc2626;">${{ steps.ping.outputs.status }}</td></tr>
               <tr><td style="padding: 4px 12px 4px 0;"><b>Detected At</b></td><td>${{ steps.ping.outputs.timestamp }}</td></tr>
             </table>

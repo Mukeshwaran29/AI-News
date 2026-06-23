@@ -5,10 +5,20 @@ import os
 
 app = modal.App("nse-sentiment-worker")
 
+def download_models():
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    from sentence_transformers import SentenceTransformer
+    
+    MODEL_ID = "ProsusAI/finbert"
+    AutoTokenizer.from_pretrained(MODEL_ID)
+    AutoModelForSequenceClassification.from_pretrained(MODEL_ID)
+    SentenceTransformer("all-MiniLM-L6-v2")
+
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install_from_requirements("requirements.txt")
     .pip_install("https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz")
+    .run_function(download_models)
     .add_local_dir(".", remote_path="/root")
 )
 

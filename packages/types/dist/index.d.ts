@@ -14,6 +14,9 @@ export interface AnalyzedEvent {
     pub_date: string;
     analyzed_at: string;
     model_version: string;
+    pdf_url?: string;
+    pdf_summary?: string;
+    highlights?: Record<string, string>;
 }
 export interface CompanyAgg {
     ticker: string;

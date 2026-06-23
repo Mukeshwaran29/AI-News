@@ -41,17 +41,19 @@ image = (
     retries=0,   # Retry logic is inside the worker itself
 )
 async def process_jobs():
-    from db_queue import claim_jobs, fetch_raw_feed, write_result, mark_failed, get_db_conn
+    from db_queue import claim_jobs, fetch_raw_feeds_batch, write_result, mark_failed, get_db_conn
     from inference import score_texts
     from enrichment import extract_entities_batch, extract_keywords_batch
     from rationale import generate_rationale
     from pdf_extractor import extract_pdf_text
     from llm_analysis import analyze_filing
+    import httpx
     
     supabase_url = os.environ["SUPABASE_URL"]
     service_key  = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
     conn = await get_db_conn(supabase_url, service_key)
+    jobs = []
     try:
         jobs = await claim_jobs(conn)
         if not jobs:
@@ -60,18 +62,18 @@ async def process_jobs():
 
         print(f"[worker] Claimed {len(jobs)} jobs")
 
-        # 1. Fetch raw feeds in parallel
-        fetch_tasks = [fetch_raw_feed(conn, str(job['raw_feed_id'])) for job in jobs]
-        raw_feeds_results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+        # 1. Fetch raw feeds in single batch DB query
+        raw_feed_ids = [str(job['raw_feed_id']) for job in jobs]
+        raw_feeds_list = await fetch_raw_feeds_batch(conn, raw_feed_ids)
+        raw_feeds_by_id = {str(rf['id']): rf for rf in raw_feeds_list}
 
         valid_jobs = []
         valid_raw_feeds = []
         
-        for job, raw in zip(jobs, raw_feeds_results):
-            if isinstance(raw, Exception):
-                await mark_failed(conn, str(job['id']), job['attempts'], f"Fetch error: {raw}")
-                print(f"[worker] Job {job['id']} fetch failed: {raw}")
-            elif not raw:
+        for job in jobs:
+            raw_id = str(job['raw_feed_id'])
+            raw = raw_feeds_by_id.get(raw_id)
+            if not raw:
                 await mark_failed(conn, str(job['id']), job['attempts'], "raw_feed not found")
                 print(f"[worker] Job {job['id']} raw feed not found")
             else:
@@ -97,14 +99,17 @@ async def process_jobs():
 
         print(f"[worker] Starting async PDF enrichment step...")
         pdf_tasks = []
-        for raw in valid_raw_feeds:
-            if raw.get('category') in PDF_CATEGORIES and raw.get('link'):
-                pdf_tasks.append(extract_pdf_text(raw['link']))
-            else:
-                pdf_tasks.append(_noop_none())
+        
+        # Instantiate a shared HTTP client with connection pooling
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as http_client:
+            for raw in valid_raw_feeds:
+                if raw.get('category') in PDF_CATEGORIES and raw.get('link'):
+                    pdf_tasks.append(extract_pdf_text(raw['link'], client=http_client))
+                else:
+                    pdf_tasks.append(_noop_none())
 
-        # Run all PDF downloads concurrently (returns None for non-PDF items)
-        pdf_texts_raw = await asyncio.gather(*pdf_tasks, return_exceptions=True)
+            # Run all PDF downloads concurrently (utilizing socket pooling)
+            pdf_texts_raw = await asyncio.gather(*pdf_tasks, return_exceptions=True)
 
         # LLM analysis — only for items that produced valid text
         llm_tasks = []
@@ -130,7 +135,6 @@ async def process_jobs():
 
             # Merge LLM result
             llm_result = llm_results[idx] if not isinstance(llm_results[idx], Exception) else {}
-            pdf_text_for_item = pdf_texts_raw[idx] if not isinstance(pdf_texts_raw[idx], Exception) else None
 
             # Use LLM-generated sentiment_reason to augment rationale if available
             base_rationale = generate_rationale(
@@ -184,6 +188,18 @@ async def process_jobs():
             print(f"[worker] Triggering {len(alert_tasks)} alerts concurrently...")
             await asyncio.gather(*alert_tasks, return_exceptions=True)
 
+    except Exception as exc:
+        import traceback
+        err_msg = f"Pipeline execution failed: {exc}\n{traceback.format_exc()}"
+        print(f"[worker] Fatal pipeline error: {err_msg}")
+        if jobs:
+            print(f"[worker] Marking {len(jobs)} claimed jobs as failed...")
+            for job in jobs:
+                try:
+                    await mark_failed(conn, str(job['id']), job['attempts'], err_msg)
+                except Exception as db_exc:
+                    print(f"[worker] Failed to mark job {job['id']} as failed: {db_exc}")
+        raise exc
     finally:
         await conn.close()
 

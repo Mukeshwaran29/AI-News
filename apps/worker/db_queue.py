@@ -36,6 +36,18 @@ async def fetch_raw_feed(conn: SupabaseRestClient, raw_feed_id: str) -> dict | N
     data = r.json()
     return data[0] if data else None
 
+async def fetch_raw_feeds_batch(conn: SupabaseRestClient, raw_feed_ids: list[str]) -> list[dict]:
+    if not raw_feed_ids:
+        return []
+    ids_param = ",".join(raw_feed_ids)
+    r = await conn.client.get(
+        f"{conn.url}/raw_feed",
+        params={"id": f"in.({ids_param})", "select": "id,title,description,category,ticker,link,pub_date"}
+    )
+    r.raise_for_status()
+    return r.json()
+
+
 async def write_result(conn: SupabaseRestClient, job_id: str, raw_feed: dict,
                         inference: dict, enrichment: dict, rationale: str) -> str:
     """

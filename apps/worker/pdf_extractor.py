@@ -28,7 +28,7 @@ _HEADERS = {
 }
 
 
-async def extract_pdf_text(url: str) -> str | None:
+async def extract_pdf_text(url: str, client: httpx.AsyncClient = None) -> str | None:
     """
     Downloads the PDF at `url` and returns plain text from the first MAX_PAGES pages.
 
@@ -40,17 +40,27 @@ async def extract_pdf_text(url: str) -> str | None:
         return None
 
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+        if client is not None:
             resp = await client.get(url, headers=_HEADERS)
             if resp.status_code != 200:
                 print(f"[pdf] HTTP {resp.status_code} for {url}")
                 return None
             content_type = resp.headers.get("content-type", "")
-            # Accept PDF or generic binary; reject HTML error pages
             if "html" in content_type.lower():
                 print(f"[pdf] Received HTML instead of PDF for {url}")
                 return None
             raw_bytes = resp.content
+        else:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as local_client:
+                resp = await local_client.get(url, headers=_HEADERS)
+                if resp.status_code != 200:
+                    print(f"[pdf] HTTP {resp.status_code} for {url}")
+                    return None
+                content_type = resp.headers.get("content-type", "")
+                if "html" in content_type.lower():
+                    print(f"[pdf] Received HTML instead of PDF for {url}")
+                    return None
+                raw_bytes = resp.content
     except Exception as exc:
         print(f"[pdf] Download error for {url}: {exc}")
         return None

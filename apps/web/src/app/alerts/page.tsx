@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Watchlist } from '@nse-sentiment/types'
+import { Watchlist } from '@/lib/types'
 import { Bell, Trash2, Plus, AlertTriangle, ShieldCheck } from 'lucide-react'
 
 export default function WatchlistPage() {

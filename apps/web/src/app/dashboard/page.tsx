@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DashboardSummary, CompanyAgg } from '@nse-sentiment/types'
+import { DashboardSummary, CompanyAgg } from '@/lib/types'
 import { TrendingUp, TrendingDown, Layers, BarChart4 } from 'lucide-react'
 import Link from 'next/link'
 

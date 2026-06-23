@@ -44,7 +44,10 @@ CREATE TABLE analyzed_events (
   keywords TEXT[] NOT NULL DEFAULT '{}',
   pub_date TIMESTAMPTZ NOT NULL,
   analyzed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  model_version TEXT NOT NULL DEFAULT 'modernbert-base-v1',
+  model_version TEXT NOT NULL DEFAULT 'finbert-base-v1',
+  pdf_url TEXT,
+  pdf_summary TEXT,
+  highlights JSONB,
   PRIMARY KEY (id, pub_date)
 ) PARTITION BY RANGE (pub_date);
 

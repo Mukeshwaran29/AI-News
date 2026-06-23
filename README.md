@@ -1,6 +1,6 @@
 # 📈 NSE Sentiment Intelligence Platform
 
-An end-to-end, high-frequency financial intelligence platform that performs real-time tracking, ModernBERT-powered financial sentiment analysis, and entity extraction on official corporate filings published by the National Stock Exchange of India (NSE).
+An end-to-end, high-frequency financial intelligence platform that performs real-time tracking, FinBERT-powered financial sentiment analysis, and entity extraction on official corporate filings published by the National Stock Exchange of India (NSE).
 
 Designed with a premium glassmorphism dashboard UI, partitioned database architecture, and a serverless, batch-vectorized ML inference pipeline.
 
@@ -16,7 +16,7 @@ graph TD
     EdgeFunc -->|Upsert Raw XML| DB[(Supabase DB: partitioned tables)]
     DB -->|Queue| Jobs[job_queue]
     Jobs -->|Trigger/Claim| Worker[Modal AI Worker]
-    Worker -->|Batch Inference| FinBERT[Hugging Face FinBERT / ModernBERT]
+    Worker -->|Batch Inference| FinBERT[Hugging Face FinBERT]
     Worker -->|Batch NER| spaCy[spaCy Entity Extraction]
     Worker -->|Write Results| DB
     DB -->|Real-time Feed| NextJS[Next.js 14 Dashboard]
@@ -31,7 +31,7 @@ graph TD
 
 ### 🐍 AI Inference Engine (Serverless Worker)
 *   **Modal (Python):** Serverless orchestration to scale model inference up and down instantly.
-*   **Hugging Face Transformers:** Sentiment classification utilizing `ProsusAI/finbert` (and fine-tuned ModernBERT models).
+*   **Hugging Face Transformers:** Sentiment classification utilizing `ProsusAI/finbert`.
 *   **spaCy (en_core_web_sm):** Natural Language Processing (NLP) for extracting ORG entities, tickers, and names.
 *   **KeyBERT:** Document keyword/keyphrase extraction.
 

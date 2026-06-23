@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CompanyProfile } from '@nse-sentiment/types'
+import { CompanyProfile } from '@/lib/types'
 import { SentimentCard } from '@/components/SentimentCard'
 import { ArrowLeft, Landmark, PieChart, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'

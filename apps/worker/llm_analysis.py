@@ -78,11 +78,6 @@ async def analyze_filing(
         f"Extracted text:\n{pdf_text[:7000]}"
     )
 
-    return await asyncio.to_thread(_call_gemini, api_key, user_message)
-
-
-def _call_gemini(api_key: str, user_message: str) -> dict:
-    """Synchronous Gemini call executed in a thread pool."""
     try:
         import google.generativeai as genai
     except ImportError:
@@ -95,7 +90,7 @@ def _call_gemini(api_key: str, user_message: str) -> dict:
             model_name="gemini-1.5-flash",
             system_instruction=_SYSTEM_PROMPT,
         )
-        response = model.generate_content(
+        response = await model.generate_content_async(
             user_message,
             generation_config={
                 "temperature": 0.1,       # Low temp = factual, consistent

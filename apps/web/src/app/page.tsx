@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { AnalyzedEvent, CATEGORY_LABELS } from '@nse-sentiment/types'
+import { AnalyzedEvent, CATEGORY_LABELS } from '@/lib/types'
 import { SentimentCard } from '@/components/SentimentCard'
+// mock data disabled – live data only
 import { Search, SlidersHorizontal, RefreshCw } from 'lucide-react'
 
 export default function LiveFeedPage() {
@@ -14,7 +15,8 @@ export default function LiveFeedPage() {
   // Filters
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<string>('')
-  const [refreshing, setRefreshing] = useState(false)
+  const [refreshing, setRefreshing] = useState(false);
+  const [sortOption, setSortOption] = useState<'date' | 'score'>('date')
 
   const fetchEvents = async (nextCursor: string | null = null, append = false) => {
     try {
@@ -32,6 +34,7 @@ export default function LiveFeedPage() {
         if (append) {
           setEvents(prev => [...prev, ...data.events])
         } else {
+          // Prepend mock examples if it's the first page load
           setEvents(data.events)
         }
         setCursor(data.cursor)
@@ -61,6 +64,16 @@ export default function LiveFeedPage() {
     e.headline.toLowerCase().includes(search.toLowerCase())
   )
 
+  const sortedEvents = [...filteredEvents].sort((a, b) => {
+    if (sortOption === 'date') {
+      return new Date(b.pub_date).getTime() - new Date(a.pub_date).getTime()
+    }
+    if (sortOption === 'score') {
+      return b.score - a.score
+    }
+    return 0
+  })
+
   return (
     <div className="space-y-6">
       {/* Hero section */}
@@ -70,10 +83,10 @@ export default function LiveFeedPage() {
             Live Platform
           </span>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-3 text-slate-100 font-outfit">
-            NSE Sentiment Intelligence
+            FlashNewsAI
           </h1>
           <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-            Real-time tracking and ModernBERT-powered financial sentiment analysis of official corporate announcements filed on National Stock Exchange of India.
+            Real-time tracking and FinBERT-powered financial sentiment analysis of official corporate announcements filed on National Stock Exchange of India.
           </p>
         </div>
       </div>
@@ -104,6 +117,16 @@ export default function LiveFeedPage() {
                 <option key={key} value={key} className="bg-slate-950">{label}</option>
               ))}
             </select>
+            {/* Sort selector */}
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as 'date' | 'score')}
+              className="bg-transparent focus:outline-none text-slate-200 cursor-pointer ml-2"
+            >
+              <option value="date" className="bg-slate-950">Newest First</option>
+              <option value="score" className="bg-slate-950">Highest Score</option>
+            </select>
+            
           </div>
 
           <button
@@ -139,7 +162,7 @@ export default function LiveFeedPage() {
         ) : (
           <>
             <div className="grid gap-4">
-              {filteredEvents.map(event => (
+              {sortedEvents.map(event => (
                 <SentimentCard key={event.id} event={event} />
               ))}
             </div>

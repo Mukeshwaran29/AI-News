@@ -3,8 +3,9 @@ import Link from 'next/link'
 import { MarketBanner } from '@/components/MarketBanner'
 
 export const metadata = {
-  title: 'NSE Sentiment Intelligence',
-  description: 'Ingest NSE India RSS feeds and perform ModernBERT financial sentiment analysis on every announcement.',
+  title: 'FlashNewsAI',
+  description: 'Real-time NSE India filings with FinBERT-powered financial sentiment analysis.',
+  description: 'Ingest NSE India RSS feeds and perform FinBERT financial sentiment analysis on every announcement.',
 }
 
 export default function RootLayout({
@@ -24,7 +25,7 @@ export default function RootLayout({
           <div className="max-w-6xl mx-auto flex items-center justify-between h-16 px-4">
             <Link href="/" className="flex items-center gap-2 group">
               <span className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-emerald-400">
-                NSE SENTIMENT
+                FlashNewsAI
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 font-bold border border-violet-500/30 uppercase tracking-widest">
                 AI
@@ -58,7 +59,7 @@ export default function RootLayout({
 
         <footer className="w-full py-6 mt-12 border-t border-white/5 glass">
           <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-            <p>© {new Date().getFullYear()} NSE Sentiment Intelligence Platform. Built using ModernBERT.</p>
+            <p>© {new Date().getFullYear()} FlashNewsAI. Powered by FinBERT sentiment analysis.</p>
             <div className="flex gap-4">
               <a href="#" className="hover:text-violet-400 transition">Terms</a>
               <a href="#" className="hover:text-violet-400 transition">Privacy Policy</a>

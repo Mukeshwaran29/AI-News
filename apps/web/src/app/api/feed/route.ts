@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('analyzed_events')
-      .select('id, raw_feed_id, ticker, company_name, category, headline, sentiment, score, rationale, keywords, pub_date, analyzed_at, model_version')
+      .select('id, raw_feed_id, ticker, company_name, category, headline, sentiment, score, rationale, keywords, pub_date, analyzed_at, model_version, pdf_url, pdf_summary, highlights')
 
     if (ticker) {
       query = query.eq('ticker', ticker)

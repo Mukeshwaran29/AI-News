@@ -56,16 +56,7 @@ async def process_jobs():
 
     conn = await get_db_conn(supabase_url, service_key)
     
-    # Run the new pipelines concurrently
-    try:
-        await scrape_and_insert_deals(conn)
-    except Exception as e:
-        print(f"[worker] Deals scraper error: {e}")
-        
-    try:
-        await analyze_youtube_sentiment(conn)
-    except Exception as e:
-        print(f"[worker] YouTube sentiment error: {e}")
+    # NLP Pipeline Start
 
     jobs = []
     try:
@@ -234,33 +225,44 @@ async def trigger_alert(supabase_url: str, service_key: str, payload: dict):
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("nse-sentiment-secrets")],
-    schedule=modal.Period(minutes=5),
+    schedule=modal.Period(minutes=15),
     timeout=120,
 )
-async def test_trigger():
-    import httpx
+async def run_deals_scraper():
+    import os
+    from db_queue import get_db_conn
+    from deals_scraper import scrape_and_insert_deals
+    
     supabase_url = os.environ["SUPABASE_URL"]
-    
-    # Get base URL (e.g. https://mmkkfpdwyxqoxjsygiwm.supabase.co)
-    base_url = supabase_url.split("/rest/v1")[0].rstrip("/")
-    anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ta2tmcGR3eXhxb3hqc3lnaXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDc4NTksImV4cCI6MjA5NzcyMzg1OX0.UnQejaGkEqTf7exj7aaNrxCICTmy2kbpYD_agJlg8ig"
-    
-    print(f"[test] Triggering poll-feeds at {base_url}/functions/v1/poll-feeds...")
-    async with httpx.AsyncClient() as client:
-        try:
-            r = await client.post(
-                f"{base_url}/functions/v1/poll-feeds",
-                headers={
-                    "Authorization": f"Bearer {anon_key}",
-                    "apikey": anon_key,
-                },
-                timeout=60.0,
-            )
-            print(f"[test] poll-feeds status: {r.status_code}")
-            print(f"[test] poll-feeds response: {r.text}")
-        except Exception as e:
-            print(f"[test] poll-feeds error: {e}")
+    service_key  = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    conn = await get_db_conn(supabase_url, service_key)
+    try:
+        await scrape_and_insert_deals(conn)
+    except Exception as e:
+        print(f"[deals_scraper] Error: {e}")
+    finally:
+        await conn.close()
 
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name("nse-sentiment-secrets")],
+    schedule=modal.Period(hours=1),
+    timeout=300,
+)
+async def run_youtube_scraper():
+    import os
+    from db_queue import get_db_conn
+    from youtube_sentiment import analyze_youtube_sentiment
+    
+    supabase_url = os.environ["SUPABASE_URL"]
+    service_key  = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    conn = await get_db_conn(supabase_url, service_key)
+    try:
+        await analyze_youtube_sentiment(conn)
+    except Exception as e:
+        print(f"[youtube_scraper] Error: {e}")
+    finally:
+        await conn.close()
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("nse-sentiment-secrets")],

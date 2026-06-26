@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { AnalyzedEvent, CATEGORY_LABELS } from '@/lib/types'
 import { SentimentCard } from '@/components/SentimentCard'
-// mock data disabled – live data only
+import { SentimentStream } from '@/components/SentimentStream'
 import { Search, SlidersHorizontal, RefreshCw } from 'lucide-react'
 
 export default function LiveFeedPage() {
@@ -34,7 +34,6 @@ export default function LiveFeedPage() {
         if (append) {
           setEvents(prev => [...prev, ...data.events])
         } else {
-          // Prepend mock examples if it's the first page load
           setEvents(data.events)
         }
         setCursor(data.cursor)
@@ -86,7 +85,7 @@ export default function LiveFeedPage() {
             FlashNewsAI
           </h1>
           <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-            Real-time tracking and FinBERT-powered financial sentiment analysis of official corporate announcements filed on National Stock Exchange of India.
+            Unified market intelligence tracking corporate announcements, institutional bulk/block deals, and financial YouTube creator sentiments.
           </p>
         </div>
       </div>
@@ -140,47 +139,8 @@ export default function LiveFeedPage() {
         </div>
       </div>
 
-      {/* Live Stream List */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map(n => (
-              <div key={n} className="glass rounded-xl p-5 h-32 animate-pulse flex gap-5 items-center">
-                <div className="w-16 h-16 rounded-full bg-slate-800/80"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-slate-800/80 rounded w-1/4"></div>
-                  <div className="h-6 bg-slate-800/80 rounded w-3/4"></div>
-                  <div className="h-4 bg-slate-800/80 rounded w-1/2"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredEvents.length === 0 ? (
-          <div className="glass rounded-xl p-12 text-center border border-white/5">
-            <p className="text-sm text-muted-foreground">No sentiment events found matching the criteria.</p>
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-4">
-              {sortedEvents.map(event => (
-                <SentimentCard key={event.id} event={event} />
-              ))}
-            </div>
-
-            {cursor && (
-              <div className="flex justify-center pt-4">
-                <button
-                  onClick={() => fetchEvents(cursor, true)}
-                  disabled={loadingMore}
-                  className="bg-violet-900/40 hover:bg-violet-900/60 border border-violet-500/20 text-violet-300 text-xs font-bold px-6 py-3 rounded-lg transition disabled:opacity-50"
-                >
-                  {loadingMore ? 'Loading...' : 'Load More Filings'}
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {/* Unified Sentiment Stream */}
+      <SentimentStream initialEvents={sortedEvents} />
     </div>
   )
 }

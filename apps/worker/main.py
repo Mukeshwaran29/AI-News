@@ -47,12 +47,26 @@ async def process_jobs():
     from rationale import generate_rationale
     from pdf_extractor import extract_pdf_text
     from llm_analysis import analyze_filing
+    from deals_scraper import scrape_and_insert_deals
+    from youtube_sentiment import analyze_youtube_sentiment
     import httpx
     
     supabase_url = os.environ["SUPABASE_URL"]
     service_key  = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
     conn = await get_db_conn(supabase_url, service_key)
+    
+    # Run the new pipelines concurrently
+    try:
+        await scrape_and_insert_deals(conn)
+    except Exception as e:
+        print(f"[worker] Deals scraper error: {e}")
+        
+    try:
+        await analyze_youtube_sentiment(conn)
+    except Exception as e:
+        print(f"[worker] YouTube sentiment error: {e}")
+
     jobs = []
     try:
         jobs = await claim_jobs(conn)

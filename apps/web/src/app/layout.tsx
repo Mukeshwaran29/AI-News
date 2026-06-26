@@ -5,7 +5,6 @@ import { MarketBanner } from '@/components/MarketBanner'
 export const metadata = {
   title: 'FlashNewsAI',
   description: 'Real-time NSE India filings with FinBERT-powered financial sentiment analysis.',
-  description: 'Ingest NSE India RSS feeds and perform FinBERT financial sentiment analysis on every announcement.',
 }
 
 export default function RootLayout({

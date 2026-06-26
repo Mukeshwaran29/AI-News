@@ -94,7 +94,8 @@ Deno.serve(async (req) => {
   const results: Record<string, any> = {}
   let totalInserted = 0
 
-  const feedPromises = Object.entries(NSE_FEEDS).map(async ([category, url]) => {
+  // Fetch feeds sequentially to prevent hitting compute resource/RAM limits on free tier
+  for (const [category, url] of Object.entries(NSE_FEEDS)) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 8000)
 
@@ -196,9 +197,7 @@ Deno.serve(async (req) => {
       clearTimeout(timeoutId)
       results[category] = { inserted: 0, skipped: 0, error: e.message }
     }
-  })
-
-  await Promise.allSettled(feedPromises)
+  }
 
   const responsePayload = {
     ok: true,

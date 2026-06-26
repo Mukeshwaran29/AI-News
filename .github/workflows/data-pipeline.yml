@@ -1,0 +1,45 @@
+name: 🔄 Data Pipeline — NSE Sentiment
+
+on:
+  schedule:
+    # Runs every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  run-pipeline:
+    name: Trigger Backend Fetch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 🚀 Trigger Supabase poll-feeds
+        run: |
+          # Use secrets if available, otherwise fallback to the known URL/key
+          BASE_URL="${{ secrets.SUPABASE_URL }}"
+          if [ -z "$BASE_URL" ]; then
+            BASE_URL="https://mmkkfpdwyxqoxjsygiwm.supabase.co"
+          else
+            # Strip /rest/v1 if present in the secret
+            BASE_URL=$(echo $BASE_URL | sed 's|/rest/v1.*||')
+          fi
+
+          ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          if [ -z "$ANON_KEY" ]; then
+            ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ta2tmcGR3eXhxb3hqc3lnaXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDc4NTksImV4cCI6MjA5NzcyMzg1OX0.UnQejaGkEqTf7exj7aaNrxCICTmy2kbpYD_agJlg8ig"
+          fi
+
+          echo "Triggering $BASE_URL/functions/v1/poll-feeds"
+          
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -X POST \
+            "$BASE_URL/functions/v1/poll-feeds" \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "apikey: $ANON_KEY")
+
+          echo "HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "✅ Data pipeline triggered successfully."
+          else
+            echo "🚨 Failed to trigger pipeline."
+            exit 1
+          fi

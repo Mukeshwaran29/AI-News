@@ -11,19 +11,31 @@ export default function CompanyProfilePage({ params }: { params: { ticker: strin
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/company/${params.ticker}`)
-      .then(res => {
+    let isMounted = true
+
+    const fetchProfile = async (silent = false) => {
+      if (!silent) setLoading(true)
+      try {
+        const res = await fetch(`/api/company/${params.ticker}`)
         if (!res.ok) throw new Error('Company not found')
-        return res.json()
-      })
-      .then(d => {
-        setProfile(d)
-        setLoading(false)
-      })
-      .catch(err => {
+        const d = await res.json()
+        if (isMounted) setProfile(d)
+      } catch (err) {
         console.error(err)
-        setLoading(false)
-      })
+      } finally {
+        if (isMounted && !silent) setLoading(false)
+      }
+    }
+
+    fetchProfile()
+    const interval = setInterval(() => {
+      fetchProfile(true)
+    }, 30000)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
   }, [params.ticker])
 
   if (loading) {

@@ -11,10 +11,10 @@ import asyncio
 import io
 import httpx
 
-# Only extract first 5 pages to keep tokens manageable (covers financials in most filings)
-MAX_PAGES = 5
-# Hard cap on extracted text length to stay within Gemini Flash context window
-MAX_CHARS  = 8_000
+# Only extract first 10 pages to keep tokens manageable but capture enough detail
+MAX_PAGES = 10
+# Hard cap on extracted text length (Gemini Flash can handle large context)
+MAX_CHARS  = 40_000
 
 # NSE occasionally blocks vanilla Python user agents — spoof a browser
 _HEADERS = {

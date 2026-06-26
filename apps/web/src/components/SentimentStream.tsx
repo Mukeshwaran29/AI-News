@@ -37,8 +37,8 @@ export function SentimentStream({ initialEvents }: { initialEvents: AnalyzedEven
   const [influencers, setInfluencers] = useState<InfluencerSentiment[]>([])
   const [loading, setLoading] = useState(false)
 
-  const fetchData = async () => {
-    setLoading(true)
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       if (activeTab === 'news') {
         const res = await fetch('/api/feed?limit=20')
@@ -56,12 +56,19 @@ export function SentimentStream({ initialEvents }: { initialEvents: AnalyzedEven
     } catch (e) {
       console.error(e)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchData()
+
+    // Auto-refresh every 30 seconds silently
+    const interval = setInterval(() => {
+      fetchData(true)
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [activeTab])
 
   return (
@@ -105,7 +112,7 @@ export function SentimentStream({ initialEvents }: { initialEvents: AnalyzedEven
         </button>
 
         <button
-          onClick={fetchData}
+          onClick={() => fetchData(false)}
           disabled={loading}
           className="ml-auto p-2 text-slate-400 hover:text-slate-200 transition"
         >

@@ -125,13 +125,11 @@ async def process_jobs():
             # Run all PDF downloads concurrently (utilizing socket pooling)
             pdf_texts_raw = await asyncio.gather(*pdf_tasks, return_exceptions=True)
 
-        # LLM analysis — only for items that produced valid text
+        # LLM analysis — for all items, utilizing PDF text if available, otherwise falling back to RSS headline/description
         llm_tasks = []
         for raw, pdf_text in zip(valid_raw_feeds, pdf_texts_raw):
-            if isinstance(pdf_text, str) and pdf_text.strip():
-                llm_tasks.append(analyze_filing(pdf_text, raw.get('category', ''), raw.get('title', '')))
-            else:
-                llm_tasks.append(_noop_dict())
+            text_to_analyze = pdf_text if (isinstance(pdf_text, str) and pdf_text.strip()) else f"{raw['title']}. {raw.get('description', '') or ''}"
+            llm_tasks.append(analyze_filing(text_to_analyze, raw.get('category', ''), raw.get('title', '')))
 
         llm_results = await asyncio.gather(*llm_tasks, return_exceptions=True)
         print(f"[worker] PDF enrichment done. "

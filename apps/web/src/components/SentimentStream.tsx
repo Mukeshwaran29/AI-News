@@ -159,8 +159,21 @@ export function SentimentStream({ initialEvents }: { initialEvents: AnalyzedEven
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {event.rationale}
                   </p>
+                  
+                  {/* Category highlights */}
+                  {event.highlights && Object.keys(event.highlights).length > 0 && (
+                    <div className="my-2 flex flex-wrap gap-2">
+                      {Object.entries(event.highlights).map(([key, value]) => (
+                        <div key={key} className="bg-slate-900/80 border border-slate-800/80 rounded-md px-2.5 py-1 text-[10px] flex gap-1.5 items-center">
+                          <span className="text-slate-400 font-medium capitalize">{key}:</span>
+                          <span className="text-violet-300 font-extrabold">{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {event.pdf_url && (
-                    <div className="pt-2 flex items-center gap-2">
+                    <div className="pt-1 flex items-center gap-2">
                       <a
                         href={event.pdf_url}
                         target="_blank"

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { AnalyzedEvent, CATEGORY_LABELS } from '@/lib/types'
 import { SentimentCard } from '@/components/SentimentCard'
 import { SentimentStream } from '@/components/SentimentStream'
+import { MarketPulseWidget } from '@/components/MarketPulseWidget'
 import { Search, SlidersHorizontal, RefreshCw } from 'lucide-react'
 
 export default function LiveFeedPage() {
@@ -89,6 +90,9 @@ export default function LiveFeedPage() {
           </p>
         </div>
       </div>
+
+      {/* Market Pulse Widget */}
+      <MarketPulseWidget />
 
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-4 glass rounded-xl border border-white/5">

@@ -1,7 +1,7 @@
 # Model loading (load once at module level, not per-call)
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 
-MODEL_ID = "ProsusAI/finbert"   # replace with fine-tuned ID when available
+MODEL_ID = "tahp0604/finbert-sentfin"   # replace with fine-tuned ID when available
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_ID)

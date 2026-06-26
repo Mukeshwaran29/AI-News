@@ -73,10 +73,23 @@ CATEGORY_SCHEMAS = {
     }
 }
 
+def compress_text_caveman(text: str) -> str:
+    """Aggressively strips stopwords and punctuation to save LLM tokens (Caveman compression)."""
+    if not text: return ""
+    # Remove non-alphanumeric (keep spaces, periods, percent, rupees, numbers)
+    text = re.sub(r'[^a-zA-Z0-9\s\.%₹/-]', ' ', text)
+    # Common stopwords to remove (case-insensitive)
+    stopwords = r'\b(the|a|an|is|are|was|were|to|of|in|for|and|with|on|at|by|from|as|it|this|that)\b'
+    text = re.sub(stopwords, '', text, flags=re.IGNORECASE)
+    # Collapse multiple spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 async def analyze_filing(
     text: str,
     category: str,
     headline: str,
+    previous_context: str = "",
 ) -> dict:
     """
     Sends PDF text or RSS description to Gemini Flash and parses structured data.
@@ -95,33 +108,34 @@ async def analyze_filing(
         "Summary": "Summary of the update"
     })
 
-    system_prompt = (
         f"You are an expert financial analyst specialising in Indian equity markets.\n"
-        f"Your task is to perform a DEEP and DETAILED analysis of the provided text from an NSE filing in the '{category}' category. The provided text is extracted from a PDF document.\n"
+        f"Your task is to perform a DEEP and DETAILED analysis of the provided text from an NSE filing in the '{category}' category. The provided text is extracted from a PDF document (and may be compressed).\n"
         f"1. Extract the following specific fields into the 'highlights' JSON dictionary:\n"
         f"{json.dumps(schema, indent=2)}\n\n"
-        f"2. Write a comprehensive, detailed 'summary' of the document's contents. DO NOT just repeat the headline. You MUST read the 'Text' and summarize the actual data, financials, decisions, or rationales discussed inside the document. The summary should be at least 3-4 sentences long and include specific numbers, names, and facts found in the text.\n\n"
+        f"2. Write a comprehensive, detailed 'summary' of the document's contents. DO NOT just repeat the headline. You MUST read the 'Text' and summarize the actual data, financials, decisions, or rationales discussed inside the document. The summary should be at least 3-4 sentences long and include specific numbers, names, and facts found in the text.\n"
+        f"{('3. PREVIOUS CONTEXT TREND ANALYSIS: Compare the new numbers against this previous filing data: ' + previous_context + ' Include this comparison in your summary and sentiment reason.') if previous_context else ''}\n\n"
         f"Provide the output as valid JSON matching this schema exactly:\n"
         f"{{\n"
-        f"  \"summary\": \"<Comprehensive, detailed summary of the document's actual contents, including specific numbers and facts>\",\n"
+        f"  \"summary\": \"<Comprehensive, detailed summary of the document's actual contents, including specific numbers, facts, and trend comparisons if context was provided>\",\n"
         f"  \"highlights\": {json.dumps({k: '<extracted value>' for k in schema.keys()}, indent=2)},\n"
-        f"  \"sentiment_reason\": \"<One sentence: why this is positive/negative/neutral for investors>\"\n"
+        f"  \"sentiment_reason\": \"<One sentence: why this is positive/negative/neutral for investors, mentioning growth/decline if previous context was provided>\"\n"
         f"}}\n\n"
         f"Rules:\n"
         f"- Always output a valid JSON object. Do not include any explanation or markdown tags.\n"
         f"- Never invent values. If a field is missing from the text, set its value to 'Not mentioned'.\n"
         f"- Use Indian number formatting (₹ Cr / ₹ L)."
-    )
 
     try:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-1.5-pro",
             system_instruction=system_prompt,
         )
+        # Apply Caveman compression
+        compressed_text = compress_text_caveman(text[:40000])
         response = await model.generate_content_async(
-            f"Filing details:\nHeadline: {headline}\nText: {text[:40000]}",
+            f"Filing details:\nHeadline: {headline}\nText: {compressed_text}",
             generation_config={
                 "temperature": 0.1,
                 "max_output_tokens": 1500,

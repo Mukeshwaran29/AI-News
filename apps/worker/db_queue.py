@@ -47,6 +47,18 @@ async def fetch_raw_feeds_batch(conn: SupabaseRestClient, raw_feed_ids: list[str
     r.raise_for_status()
     return r.json()
 
+async def fetch_previous_event(conn: SupabaseRestClient, ticker: str) -> dict | None:
+    """Fetches the most recent analyzed event for a given ticker to use as context (Poor Man's RAG)."""
+    if not ticker or ticker == 'UNKNOWN':
+        return None
+    r = await conn.client.get(
+        f"{conn.url}/analyzed_events",
+        params={"ticker": f"eq.{ticker}", "order": "pub_date.desc", "limit": "1"}
+    )
+    if r.status_code == 200 and r.json():
+        return r.json()[0]
+    return None
+
 
 async def write_result(conn: SupabaseRestClient, job_id: str, raw_feed: dict,
                         inference: dict, enrichment: dict, rationale: str) -> str:

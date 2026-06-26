@@ -41,7 +41,7 @@ image = (
     retries=0,   # Retry logic is inside the worker itself
 )
 async def process_jobs():
-    from db_queue import claim_jobs, fetch_raw_feeds_batch, write_result, mark_failed, get_db_conn
+    from db_queue import claim_jobs, fetch_raw_feeds_batch, write_result, mark_failed, get_db_conn, fetch_previous_event
     from inference import score_texts
     from enrichment import extract_entities_batch, extract_keywords_batch
     from rationale import generate_rationale
@@ -118,9 +118,18 @@ async def process_jobs():
 
         # LLM analysis — for all items, utilizing PDF text if available, otherwise falling back to RSS headline/description
         llm_tasks = []
-        for raw, pdf_text in zip(valid_raw_feeds, pdf_texts_raw):
-            text_to_analyze = pdf_text if (isinstance(pdf_text, str) and pdf_text.strip()) else f"{raw['title']}. {raw.get('description', '') or ''}"
-            llm_tasks.append(analyze_filing(text_to_analyze, raw.get('category', ''), raw.get('title', '')))
+        for raw, pdf_text, entities in zip(valid_raw_feeds, pdf_texts_raw, entities_list):
+            ticker_val = entities.get('ticker') or raw.get('ticker') or 'UNKNOWN'
+            
+            async def _process_llm(_raw, _pdf_text, _ticker):
+                prev_event = await fetch_previous_event(conn, _ticker)
+                prev_context = ""
+                if prev_event:
+                    prev_context = f"Previous summary: {prev_event.get('pdf_summary') or prev_event.get('summary', '')} | Highlights: {prev_event.get('highlights', {})}"
+                text_to_analyze = _pdf_text if (isinstance(_pdf_text, str) and _pdf_text.strip()) else f"{_raw['title']}. {_raw.get('description', '') or ''}"
+                return await analyze_filing(text_to_analyze, _raw.get('category', ''), _raw.get('title', ''), prev_context)
+            
+            llm_tasks.append(_process_llm(raw, pdf_text, ticker_val))
 
         llm_results = await asyncio.gather(*llm_tasks, return_exceptions=True)
         print(f"[worker] PDF enrichment done. "
